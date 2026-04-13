@@ -1,29 +1,92 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f8fafc;
-  --foreground: #0f172a;
-  --accent: #0ea5e9;
-  --accent-dark: #0284c7;
+  /* Polarmax brand greens */
+  --green-900: #1a3a1a;
+  --green-800: #234d23;
+  --green-700: #2d6a2d;
+  --green-600: #3a8a3a;
+  --green-500: #4caf50;
+  --green-400: #66bb6a;
+  --green-300: #a5d6a7;
+  --green-200: #c8e6c9;
+  --green-100: #e8f5e9;
+  --green-50: #f1f8f1;
+
+  /* UI tokens */
+  --background: #fafbfc;
+  --foreground: #111827;
   --surface: #ffffff;
-  --border: #e2e8f0;
-  --muted: #64748b;
+  --surface-elevated: #ffffff;
+  --border: #e5e7eb;
+  --border-light: #f3f4f6;
+  --muted: #6b7280;
+  --muted-light: #9ca3af;
+
+  /* Accent = Polarmax green */
+  --accent: #2d6a2d;
+  --accent-light: #4caf50;
+  --accent-lighter: #e8f5e9;
+  --accent-dark: #1a3a1a;
+
+  /* Semantic */
+  --success: #059669;
+  --warning: #d97706;
+  --error: #dc2626;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --color-accent: var(--accent);
-  --color-accent-dark: var(--accent-dark);
   --color-surface: var(--surface);
+  --color-surface-elevated: var(--surface-elevated);
   --color-border: var(--border);
+  --color-border-light: var(--border-light);
   --color-muted: var(--muted);
+  --color-muted-light: var(--muted-light);
+  --color-accent: var(--accent);
+  --color-accent-light: var(--accent-light);
+  --color-accent-lighter: var(--accent-lighter);
+  --color-accent-dark: var(--accent-dark);
+  --color-green-50: var(--green-50);
+  --color-green-100: var(--green-100);
+  --color-green-200: var(--green-200);
+  --color-green-500: var(--green-500);
+  --color-green-600: var(--green-600);
+  --color-green-700: var(--green-700);
+  --color-green-800: var(--green-800);
+  --color-green-900: var(--green-900);
+  --color-success: var(--success);
+  --color-warning: var(--warning);
+  --color-error: var(--error);
   --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
 }
 
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: var(--font-sans), Arial, Helvetica, sans-serif;
+  font-family: var(--font-sans), system-ui, -apple-system, sans-serif;
+}
+
+/* Smooth transitions */
+* {
+  transition-property: color, background-color, border-color, box-shadow;
+  transition-timing-function: ease;
+  transition-duration: 150ms;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: var(--muted-light);
 }

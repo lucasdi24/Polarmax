@@ -9,26 +9,25 @@ interface MaterialSelectorProps {
 }
 
 export default function MaterialSelector({ onSelect }: MaterialSelectorProps) {
-  const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(
-    null
-  );
+  const [selectedMaterial, setSelectedMaterial] = useState<Material | null>(null);
 
-  // Materiales visibles (excluir espejado-exterior, se usa solo para DVH)
   const visibleMaterials = MATERIALS.filter((m) => m.category !== 'espejado-exterior');
 
   return (
-    <div className="space-y-6">
-      <div>
-        <h2 className="text-lg font-semibold mb-1">
-          Seleccioná el tipo de film
+    <div className="space-y-8">
+      {/* Hero section */}
+      <div className="text-center">
+        <h2 className="text-2xl sm:text-3xl font-bold text-foreground">
+          Cotizá tu film en segundos
         </h2>
-        <p className="text-sm text-muted">
-          Elegí el material que necesitás para tus vidrios
+        <p className="text-muted mt-2 text-sm sm:text-base max-w-lg mx-auto">
+          Seleccioná el tipo de lámina que necesitás y te calculamos la cantidad
+          exacta de material para tus vidrios.
         </p>
       </div>
 
-      {/* Material cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+      {/* Material grid */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
         {visibleMaterials.map((material) => {
           const isSelected = selectedMaterial?.id === material.id;
           const minPrice = Math.min(...material.variants.map((v) => v.pricePerLinearMeter));
@@ -37,22 +36,29 @@ export default function MaterialSelector({ onSelect }: MaterialSelectorProps) {
             <button
               key={material.id}
               onClick={() => setSelectedMaterial(material)}
-              className={`text-left p-4 rounded-xl border-2 transition-all ${
+              className={`group text-left p-5 rounded-2xl border-2 cursor-pointer ${
                 isSelected
-                  ? 'border-accent bg-accent/5 shadow-sm'
-                  : 'border-border bg-surface hover:border-accent/40'
+                  ? 'border-accent bg-accent-lighter/50 shadow-lg shadow-accent/10'
+                  : 'border-border-light bg-surface hover:border-accent/30 hover:shadow-md'
               }`}
             >
               <div className="flex items-start gap-3">
-                <span className="text-2xl">{material.icon}</span>
+                <span className="text-2xl mt-0.5 grayscale group-hover:grayscale-0" style={isSelected ? { filter: 'none' } : undefined}>
+                  {material.icon}
+                </span>
                 <div className="flex-1 min-w-0">
-                  <h3 className="font-semibold text-sm">{material.name}</h3>
-                  <p className="text-xs text-muted mt-1 line-clamp-2">
+                  <h3 className={`font-bold text-sm ${isSelected ? 'text-accent-dark' : 'text-foreground'}`}>
+                    {material.name}
+                  </h3>
+                  <p className="text-xs text-muted mt-1 line-clamp-2 leading-relaxed">
                     {material.description}
                   </p>
-                  <p className="text-xs text-accent font-medium mt-2">
-                    Desde ${minPrice.toLocaleString('es-AR')}/m lineal
-                  </p>
+                  <div className="flex items-center gap-1.5 mt-3">
+                    <span className={`text-xs font-bold ${isSelected ? 'text-accent' : 'text-accent-light'}`}>
+                      Desde ${minPrice.toLocaleString('es-AR')}
+                    </span>
+                    <span className="text-xs text-muted-light">/m lineal</span>
+                  </div>
                 </div>
               </div>
             </button>
@@ -62,22 +68,33 @@ export default function MaterialSelector({ onSelect }: MaterialSelectorProps) {
 
       {/* Variant selection */}
       {selectedMaterial && (
-        <div className="space-y-3 animate-in fade-in slide-in-from-bottom-2 duration-300">
-          <h3 className="text-sm font-semibold">
+        <div className="bg-surface rounded-2xl border border-border p-6 shadow-sm">
+          <h3 className="text-sm font-bold text-foreground mb-4">
             Elegí la variante de {selectedMaterial.name}
           </h3>
-          <div className="flex flex-wrap gap-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
             {selectedMaterial.variants.map((variant) => (
               <button
                 key={variant.id}
                 onClick={() => onSelect(selectedMaterial, variant)}
-                className="px-4 py-2.5 rounded-lg border border-border bg-surface text-left hover:border-accent hover:text-accent transition-colors"
+                className="group p-3.5 rounded-xl border border-border bg-background text-left hover:border-accent hover:bg-accent-lighter/30 cursor-pointer"
               >
-                <span className="text-sm font-medium block">{variant.label}</span>
-                <span className="text-xs text-muted">
-                  ${variant.pricePerLinearMeter.toLocaleString('es-AR')}/m
-                  {variant.bobinWidthCm !== 152 && ` · ${variant.bobinWidthCm}cm ancho`}
+                <span className="text-sm font-semibold text-foreground group-hover:text-accent-dark block">
+                  {variant.label}
                 </span>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <span className="text-xs font-bold text-accent-light">
+                    ${variant.pricePerLinearMeter.toLocaleString('es-AR')}/m
+                  </span>
+                  {variant.bobinWidthCm !== 152 && (
+                    <>
+                      <span className="text-muted-light">·</span>
+                      <span className="text-xs text-muted">
+                        bobina {variant.bobinWidthCm}cm
+                      </span>
+                    </>
+                  )}
+                </div>
               </button>
             ))}
           </div>

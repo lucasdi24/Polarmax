@@ -12,55 +12,47 @@ interface StepperProps {
 
 export default function Stepper({ currentStep }: StepperProps) {
   return (
-    <div className="flex items-center justify-center gap-0 w-full max-w-md mx-auto py-6">
+    <div className="flex items-center justify-center w-full max-w-sm mx-auto py-8">
       {STEPS.map((step, i) => {
         const isActive = step.number === currentStep;
         const isDone = step.number < currentStep;
 
         return (
-          <div key={step.number} className="flex items-center">
+          <div key={step.number} className="flex items-center flex-1 last:flex-none">
             <div className="flex flex-col items-center">
               <div
-                className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold transition-colors ${
+                className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold border-2 ${
                   isActive
-                    ? 'bg-accent text-white'
+                    ? 'bg-accent text-white border-accent shadow-md shadow-accent/20'
                     : isDone
-                      ? 'bg-accent/20 text-accent'
-                      : 'bg-border text-muted'
+                      ? 'bg-accent-lighter text-accent border-accent/30'
+                      : 'bg-white text-muted border-border'
                 }`}
               >
                 {isDone ? (
-                  <svg
-                    className="w-4 h-4"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                    strokeWidth={3}
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M5 13l4 4L19 7"
-                    />
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                   </svg>
                 ) : (
                   step.number
                 )}
               </div>
               <span
-                className={`mt-1 text-xs font-medium ${
-                  isActive ? 'text-accent' : 'text-muted'
+                className={`mt-1.5 text-xs font-semibold ${
+                  isActive ? 'text-accent' : isDone ? 'text-accent/60' : 'text-muted-light'
                 }`}
               >
                 {step.label}
               </span>
             </div>
             {i < STEPS.length - 1 && (
-              <div
-                className={`w-16 sm:w-24 h-0.5 mx-2 mb-5 ${
-                  step.number < currentStep ? 'bg-accent/40' : 'bg-border'
-                }`}
-              />
+              <div className="flex-1 mx-3 mb-5">
+                <div
+                  className={`h-0.5 rounded-full ${
+                    step.number < currentStep ? 'bg-accent/30' : 'bg-border'
+                  }`}
+                />
+              </div>
             )}
           </div>
         );
