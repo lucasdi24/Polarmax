@@ -50,11 +50,11 @@ export function useCotizador() {
   }, []);
 
   const calculate = useCallback(() => {
-    if (!state.selectedMaterial) return;
+    if (!state.selectedMaterial || !state.selectedVariant) return;
 
     const { results, errors } = calculateCutting({
       glasses: state.glasses,
-      bobinWidthCm: state.selectedMaterial.bobinWidthCm,
+      bobinWidthCm: state.selectedVariant.bobinWidthCm,
     });
 
     setState((prev) => ({
@@ -63,7 +63,7 @@ export function useCotizador() {
       result: results[0] ?? null,
       errors,
     }));
-  }, [state.selectedMaterial, state.glasses]);
+  }, [state.selectedMaterial, state.selectedVariant, state.glasses]);
 
   const goToStep = useCallback((step: 1 | 2 | 3) => {
     setState((prev) => ({ ...prev, step }));
@@ -82,10 +82,10 @@ export function useCotizador() {
 
   // Obtener todos los results (normal + DVH) recalculando
   const allResults: CuttingResult[] = (() => {
-    if (state.step !== 3 || !state.selectedMaterial) return [];
+    if (state.step !== 3 || !state.selectedVariant) return [];
     const { results } = calculateCutting({
       glasses: state.glasses,
-      bobinWidthCm: state.selectedMaterial.bobinWidthCm,
+      bobinWidthCm: state.selectedVariant.bobinWidthCm,
     });
     return results;
   })();

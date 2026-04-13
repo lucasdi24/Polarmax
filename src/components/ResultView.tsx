@@ -1,7 +1,7 @@
 'use client';
 
 import type { CuttingResult, CuttingError, Material, FilmVariant } from '@/lib/types';
-import { MATERIALS, WHATSAPP_NUMBER } from '@/lib/materials';
+import { MATERIALS, WHATSAPP_NUMBER, DVH_MATERIAL_ID } from '@/lib/materials';
 import CuttingPlanCanvas from './CuttingPlanCanvas';
 
 interface ResultViewProps {
@@ -30,17 +30,18 @@ export default function ResultView({
   onReset,
 }: ResultViewProps) {
   // Calcular totales
-  const dvhMaterial = MATERIALS.find((m) => m.category === 'seguridad-exterior');
+  const dvhMaterial = MATERIALS.find((m) => m.id === DVH_MATERIAL_ID);
+  const dvhVariant = dvhMaterial?.variants[0];
 
   const normalResult = results[0];
   const dvhResult = hasDVH && results.length > 1 ? results[1] : null;
 
   const normalPrice = normalResult
-    ? normalResult.linearMeters * material.pricePerLinearMeter
+    ? normalResult.linearMeters * variant.pricePerLinearMeter
     : 0;
   const dvhPrice =
-    dvhResult && dvhMaterial
-      ? dvhResult.linearMeters * dvhMaterial.pricePerLinearMeter
+    dvhResult && dvhVariant
+      ? dvhResult.linearMeters * dvhVariant.pricePerLinearMeter
       : 0;
   const totalPrice = normalPrice + dvhPrice;
 
@@ -156,15 +157,15 @@ export default function ResultView({
           <div className="flex justify-between">
             <span className="text-muted">
               {material.name} ({normalResult?.linearMeters.toFixed(2)}m x $
-              {material.pricePerLinearMeter.toLocaleString('es-AR')})
+              {variant.pricePerLinearMeter.toLocaleString('es-AR')})
             </span>
             <span>${normalPrice.toLocaleString('es-AR')}</span>
           </div>
-          {dvhMaterial && (
+          {dvhVariant && (
             <div className="flex justify-between">
               <span className="text-muted">
-                Film Seguridad Exterior DVH ({dvhResult.linearMeters.toFixed(2)}
-                m x ${dvhMaterial.pricePerLinearMeter.toLocaleString('es-AR')})
+                Film Espejado Exterior DVH ({dvhResult.linearMeters.toFixed(2)}
+                m x ${dvhVariant.pricePerLinearMeter.toLocaleString('es-AR')})
               </span>
               <span>${dvhPrice.toLocaleString('es-AR')}</span>
             </div>

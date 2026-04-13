@@ -13,6 +13,9 @@ export default function MaterialSelector({ onSelect }: MaterialSelectorProps) {
     null
   );
 
+  // Materiales visibles (excluir espejado-exterior, se usa solo para DVH)
+  const visibleMaterials = MATERIALS.filter((m) => m.category !== 'espejado-exterior');
+
   return (
     <div className="space-y-6">
       <div>
@@ -26,37 +29,35 @@ export default function MaterialSelector({ onSelect }: MaterialSelectorProps) {
 
       {/* Material cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        {MATERIALS.filter((m) => m.category !== 'seguridad-exterior').map(
-          (material) => {
-            const isSelected = selectedMaterial?.id === material.id;
+        {visibleMaterials.map((material) => {
+          const isSelected = selectedMaterial?.id === material.id;
+          const minPrice = Math.min(...material.variants.map((v) => v.pricePerLinearMeter));
 
-            return (
-              <button
-                key={material.id}
-                onClick={() => setSelectedMaterial(material)}
-                className={`text-left p-4 rounded-xl border-2 transition-all ${
-                  isSelected
-                    ? 'border-accent bg-accent/5 shadow-sm'
-                    : 'border-border bg-surface hover:border-accent/40'
-                }`}
-              >
-                <div className="flex items-start gap-3">
-                  <span className="text-2xl">{material.icon}</span>
-                  <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold text-sm">{material.name}</h3>
-                    <p className="text-xs text-muted mt-1 line-clamp-2">
-                      {material.description}
-                    </p>
-                    <p className="text-xs text-accent font-medium mt-2">
-                      ${material.pricePerLinearMeter.toLocaleString('es-AR')}/m
-                      lineal
-                    </p>
-                  </div>
+          return (
+            <button
+              key={material.id}
+              onClick={() => setSelectedMaterial(material)}
+              className={`text-left p-4 rounded-xl border-2 transition-all ${
+                isSelected
+                  ? 'border-accent bg-accent/5 shadow-sm'
+                  : 'border-border bg-surface hover:border-accent/40'
+              }`}
+            >
+              <div className="flex items-start gap-3">
+                <span className="text-2xl">{material.icon}</span>
+                <div className="flex-1 min-w-0">
+                  <h3 className="font-semibold text-sm">{material.name}</h3>
+                  <p className="text-xs text-muted mt-1 line-clamp-2">
+                    {material.description}
+                  </p>
+                  <p className="text-xs text-accent font-medium mt-2">
+                    Desde ${minPrice.toLocaleString('es-AR')}/m lineal
+                  </p>
                 </div>
-              </button>
-            );
-          }
-        )}
+              </div>
+            </button>
+          );
+        })}
       </div>
 
       {/* Variant selection */}
@@ -70,9 +71,13 @@ export default function MaterialSelector({ onSelect }: MaterialSelectorProps) {
               <button
                 key={variant.id}
                 onClick={() => onSelect(selectedMaterial, variant)}
-                className="px-4 py-2 rounded-lg border border-border bg-surface text-sm font-medium hover:border-accent hover:text-accent transition-colors"
+                className="px-4 py-2.5 rounded-lg border border-border bg-surface text-left hover:border-accent hover:text-accent transition-colors"
               >
-                {variant.label}
+                <span className="text-sm font-medium block">{variant.label}</span>
+                <span className="text-xs text-muted">
+                  ${variant.pricePerLinearMeter.toLocaleString('es-AR')}/m
+                  {variant.bobinWidthCm !== 152 && ` · ${variant.bobinWidthCm}cm ancho`}
+                </span>
               </button>
             ))}
           </div>

@@ -7,13 +7,16 @@ export type FilmCategory =
   | 'seguridad'
   | 'espejado'
   | 'esmerilado'
-  | 'control-solar'
-  | 'seguridad-exterior';
+  | 'polarizado'
+  | 'nano-ceramico'
+  | 'espejado-exterior';
 
-/** Variante dentro de una categoría */
+/** Variante dentro de una categoría — cada una con su precio y ancho de bobina */
 export interface FilmVariant {
   id: string;
   label: string;
+  bobinWidthCm: number;
+  pricePerLinearMeter: number;
 }
 
 /** Definición completa de un material */
@@ -23,9 +26,7 @@ export interface Material {
   name: string;
   description: string;
   variants: FilmVariant[];
-  bobinWidthCm: number; // ancho de la bobina en cm
-  pricePerLinearMeter: number; // precio por metro lineal (ARS)
-  icon: string; // emoji or icon identifier
+  icon: string;
 }
 
 /** Vidrio ingresado por el usuario */
