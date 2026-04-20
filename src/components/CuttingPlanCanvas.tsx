@@ -17,25 +17,25 @@ interface CuttingPlanCanvasProps {
 export default function CuttingPlanCanvas({ result, label }: CuttingPlanCanvasProps) {
   const { placedPieces, bobinWidthCm, totalLengthCm } = result;
 
-  const maxViewWidth = 700;
+  const baseWidth = 700;
   const padding = 50;
-
-  const scale = useMemo(() => {
-    return (maxViewWidth - padding * 2) / bobinWidthCm;
-  }, [bobinWidthCm]);
-
-  const svgWidth = maxViewWidth;
+  const scale = useMemo(
+    () => (baseWidth - padding * 2) / bobinWidthCm,
+    [bobinWidthCm]
+  );
+  const svgWidth = baseWidth;
   const svgHeight = totalLengthCm * scale + padding * 2 + 20;
 
   return (
     <div className="space-y-3">
       {label && <h4 className="text-sm font-bold text-foreground">{label}</h4>}
 
-      <div
-        className="overflow-auto rounded-2xl border border-border bg-white shadow-sm"
-        style={{ maxHeight: '480px' }}
-      >
-        <svg viewBox={`0 0 ${svgWidth} ${svgHeight}`} width={svgWidth} height={svgHeight} className="block">
+      <div className="rounded-2xl border border-border bg-white shadow-sm p-2">
+        <svg
+          viewBox={`0 0 ${svgWidth} ${svgHeight}`}
+          preserveAspectRatio="xMidYMin meet"
+          className="block w-full h-auto"
+        >
           {/* Background */}
           <rect
             x={padding} y={padding}

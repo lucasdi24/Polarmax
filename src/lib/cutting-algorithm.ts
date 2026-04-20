@@ -262,8 +262,289 @@ function shelfPack(
   return { shelves, totalLength };
 }
 
+// ============================================================
+// Maximal Rectangles — mejor para piezas mixtas (aprovecha huecos)
+// ============================================================
+
+interface FreeRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
+const HUGE_HEIGHT = 100000; // "infinito" para el largo de bobina
+
+type RotationPref = 'auto' | 'keep' | 'rotate';
+
 /**
- * Genera múltiples ordenamientos y elige el mejor resultado.
+ * Algoritmo Maximal Rectangles con Best Short Side Fit (BSSF).
+ * Mantiene una lista de rectángulos libres y, para cada pieza,
+ * busca el mejor espacio considerando ambas orientaciones.
+ *
+ * @param rotationPref 'auto' usa BSSF, 'keep' prefiere no rotar, 'rotate' prefiere rotar
+ */
+function maximalRectPack(
+  pieces: CuttingPiece[],
+  bobinWidth: number,
+  rotationPref: RotationPref = 'auto'
+): { placedPieces: PlacedPiece[]; totalLength: number } {
+  const placed: PlacedPiece[] = [];
+  let freeRects: FreeRect[] = [
+    { x: 0, y: 0, width: bobinWidth, height: HUGE_HEIGHT },
+  ];
+  let maxY = 0;
+
+  for (const piece of pieces) {
+    // Buscar el mejor rectángulo libre para esta pieza
+    let best: {
+      rect: FreeRect;
+      w: number;
+      h: number;
+      rotated: boolean;
+      score: number;
+    } | null = null;
+
+    const tryFit = (w: number, h: number, rotated: boolean) => {
+      for (const rect of freeRects) {
+        if (w > rect.width || h > rect.height) continue;
+        // Best Short Side Fit: minimizar la menor distancia sobrante
+        const shortSideLeft = Math.min(rect.width - w, rect.height - h);
+        const longSideLeft = Math.max(rect.width - w, rect.height - h);
+        // Tiebreaker: preferir y más bajo (arriba)
+        let score = shortSideLeft * 1e6 + longSideLeft + rect.y * 0.001;
+        // Ajuste según preferencia de rotación
+        if (rotationPref === 'keep' && rotated) score += 1e12;
+        if (rotationPref === 'rotate' && !rotated) score += 1e12;
+        if (!best || score < best.score) {
+          best = { rect, w, h, rotated, score };
+        }
+      }
+    };
+
+    // Orientación normal
+    tryFit(piece.width, piece.height, false);
+    // Orientación rotada
+    if (piece.width !== piece.height) {
+      tryFit(piece.height, piece.width, true);
+    }
+
+    if (!best) continue; // Pieza no cabe (no debería pasar con altura "infinita")
+
+    // Placeholder: narrow type because TS can't infer 'best' is non-null after 'continue'
+    const chosen: {
+      rect: FreeRect;
+      w: number;
+      h: number;
+      rotated: boolean;
+      score: number;
+    } = best;
+
+    // Colocar la pieza en la esquina superior-izquierda del rect elegido
+    const placedPiece: PlacedPiece = {
+      id: piece.id,
+      glassId: piece.glassId,
+      x: chosen.rect.x,
+      y: chosen.rect.y,
+      width: chosen.w,
+      height: chosen.h,
+      rotated: chosen.rotated,
+      originalWidth: piece.originalWidth,
+      originalHeight: piece.originalHeight,
+    };
+    placed.push(placedPiece);
+    maxY = Math.max(maxY, placedPiece.y + placedPiece.height);
+
+    // Actualizar rectángulos libres: romper los que se superponen con la pieza colocada
+    const px = placedPiece.x;
+    const py = placedPiece.y;
+    const pw = placedPiece.width;
+    const ph = placedPiece.height;
+
+    const newFreeRects: FreeRect[] = [];
+    for (const rect of freeRects) {
+      // Si no hay intersección, mantener intacto
+      if (
+        rect.x >= px + pw ||
+        rect.x + rect.width <= px ||
+        rect.y >= py + ph ||
+        rect.y + rect.height <= py
+      ) {
+        newFreeRects.push(rect);
+        continue;
+      }
+      // Dividir en hasta 4 sub-rects (izquierda, derecha, arriba, abajo de la pieza)
+      if (px > rect.x) {
+        newFreeRects.push({
+          x: rect.x,
+          y: rect.y,
+          width: px - rect.x,
+          height: rect.height,
+        });
+      }
+      if (px + pw < rect.x + rect.width) {
+        newFreeRects.push({
+          x: px + pw,
+          y: rect.y,
+          width: rect.x + rect.width - (px + pw),
+          height: rect.height,
+        });
+      }
+      if (py > rect.y) {
+        newFreeRects.push({
+          x: rect.x,
+          y: rect.y,
+          width: rect.width,
+          height: py - rect.y,
+        });
+      }
+      if (py + ph < rect.y + rect.height) {
+        newFreeRects.push({
+          x: rect.x,
+          y: py + ph,
+          width: rect.width,
+          height: rect.y + rect.height - (py + ph),
+        });
+      }
+    }
+
+    // Eliminar rectángulos que están contenidos en otros (duplicados/redundantes)
+    freeRects = newFreeRects.filter((r, i) => {
+      if (r.width <= 0 || r.height <= 0) return false;
+      return !newFreeRects.some(
+        (other, j) =>
+          i !== j &&
+          other.x <= r.x &&
+          other.y <= r.y &&
+          other.x + other.width >= r.x + r.width &&
+          other.y + other.height >= r.y + r.height
+      );
+    });
+  }
+
+  return { placedPieces: placed, totalLength: maxY };
+}
+
+/**
+ * Packing Maximal Rectangles SIN probar rotación (orientación fija).
+ * Usado por la fase de brute force para probar distintas combinaciones
+ * de orientación sin que el algoritmo decida rotar.
+ */
+function fixedOrientationPack(
+  pieces: CuttingPiece[],
+  bobinWidth: number
+): { placedPieces: PlacedPiece[]; totalLength: number } {
+  const placed: PlacedPiece[] = [];
+  let freeRects: FreeRect[] = [
+    { x: 0, y: 0, width: bobinWidth, height: HUGE_HEIGHT },
+  ];
+  let maxY = 0;
+
+  // Ordenar por área descendente para mejor packing
+  const sorted = [...pieces].sort(
+    (a, b) => b.width * b.height - a.width * a.height
+  );
+
+  for (const piece of sorted) {
+    let best: { rect: FreeRect; score: number } | null = null;
+
+    for (const rect of freeRects) {
+      if (piece.width > rect.width || piece.height > rect.height) continue;
+      const shortSideLeft = Math.min(
+        rect.width - piece.width,
+        rect.height - piece.height
+      );
+      const longSideLeft = Math.max(
+        rect.width - piece.width,
+        rect.height - piece.height
+      );
+      const score = shortSideLeft * 1e6 + longSideLeft + rect.y * 0.001;
+      if (!best || score < best.score) {
+        best = { rect, score };
+      }
+    }
+
+    if (!best) continue; // no cabe (no debería)
+
+    const chosen = best;
+
+    const placedPiece: PlacedPiece = {
+      id: piece.id,
+      glassId: piece.glassId,
+      x: chosen.rect.x,
+      y: chosen.rect.y,
+      width: piece.width,
+      height: piece.height,
+      rotated: false, // se corrige luego en el caller
+      originalWidth: piece.originalWidth,
+      originalHeight: piece.originalHeight,
+    };
+    placed.push(placedPiece);
+    maxY = Math.max(maxY, placedPiece.y + placedPiece.height);
+
+    // Actualizar rects libres (misma lógica que maximalRectPack)
+    const px = placedPiece.x;
+    const py = placedPiece.y;
+    const pw = placedPiece.width;
+    const ph = placedPiece.height;
+    const newFreeRects: FreeRect[] = [];
+    for (const rect of freeRects) {
+      if (
+        rect.x >= px + pw ||
+        rect.x + rect.width <= px ||
+        rect.y >= py + ph ||
+        rect.y + rect.height <= py
+      ) {
+        newFreeRects.push(rect);
+        continue;
+      }
+      if (px > rect.x)
+        newFreeRects.push({
+          x: rect.x,
+          y: rect.y,
+          width: px - rect.x,
+          height: rect.height,
+        });
+      if (px + pw < rect.x + rect.width)
+        newFreeRects.push({
+          x: px + pw,
+          y: rect.y,
+          width: rect.x + rect.width - (px + pw),
+          height: rect.height,
+        });
+      if (py > rect.y)
+        newFreeRects.push({
+          x: rect.x,
+          y: rect.y,
+          width: rect.width,
+          height: py - rect.y,
+        });
+      if (py + ph < rect.y + rect.height)
+        newFreeRects.push({
+          x: rect.x,
+          y: py + ph,
+          width: rect.width,
+          height: rect.y + rect.height - (py + ph),
+        });
+    }
+    freeRects = newFreeRects.filter((r, i) => {
+      if (r.width <= 0 || r.height <= 0) return false;
+      return !newFreeRects.some(
+        (other, j) =>
+          i !== j &&
+          other.x <= r.x &&
+          other.y <= r.y &&
+          other.x + other.width >= r.x + r.width &&
+          other.y + other.height >= r.y + r.height
+      );
+    });
+  }
+
+  return { placedPieces: placed, totalLength: maxY };
+}
+
+/**
+ * Genera múltiples ordenamientos y algoritmos, elige el mejor resultado.
  */
 function optimizedPack(
   pieces: CuttingPiece[],
@@ -275,14 +556,15 @@ function optimizedPack(
     // Mayor área primero
     (a, b) => b.width * b.height - a.width * a.height,
     // Mayor dimensión máxima primero
-    (a, b) =>
-      Math.max(b.width, b.height) - Math.max(a.width, a.height),
+    (a, b) => Math.max(b.width, b.height) - Math.max(a.width, a.height),
     // Mayor altura primero
     (a, b) => Math.max(b.height, b.width) - Math.max(a.height, a.width),
-    // Mayor ancho primero
-    (a, b) => Math.max(b.width, b.height) - Math.max(a.width, a.height),
+    // Mayor dimensión mínima primero
+    (a, b) => Math.min(b.width, b.height) - Math.min(a.width, a.height),
     // Menor área primero (a veces encaja mejor los chicos antes)
     (a, b) => a.width * a.height - b.width * b.height,
+    // Por perímetro (mayor primero)
+    (a, b) => 2 * (b.width + b.height) - 2 * (a.width + a.height),
   ];
 
   let bestResult: { placedPieces: PlacedPiece[]; totalLengthCm: number } = {
@@ -292,11 +574,69 @@ function optimizedPack(
 
   for (const strategy of strategies) {
     const sorted = [...pieces].sort(strategy);
-    const { shelves, totalLength } = shelfPack(sorted, bobinWidth);
 
-    if (totalLength < bestResult.totalLengthCm) {
-      const allPieces = shelves.flatMap((s) => s.pieces);
-      bestResult = { placedPieces: allPieces, totalLengthCm: totalLength };
+    // 1) Shelf packing con esta estrategia
+    const shelfRes = shelfPack(sorted, bobinWidth);
+    if (shelfRes.totalLength < bestResult.totalLengthCm) {
+      bestResult = {
+        placedPieces: shelfRes.shelves.flatMap((s) => s.pieces),
+        totalLengthCm: shelfRes.totalLength,
+      };
+    }
+
+    // 2) Maximal Rectangles con varias preferencias de rotación
+    for (const pref of ['auto', 'keep', 'rotate'] as const) {
+      const mrRes = maximalRectPack(sorted, bobinWidth, pref);
+      if (mrRes.totalLength < bestResult.totalLengthCm) {
+        bestResult = {
+          placedPieces: mrRes.placedPieces,
+          totalLengthCm: mrRes.totalLength,
+        };
+      }
+    }
+  }
+
+  // 3) Brute force de orientaciones para N pequeño (≤ 12 piezas)
+  // Garantiza encontrar layouts óptimos en mixes de tamaños.
+  if (pieces.length <= 12) {
+    const n = pieces.length;
+    const combos = 1 << n;
+    for (let mask = 0; mask < combos; mask++) {
+      const preRotated: CuttingPiece[] = pieces.map((p, i) => {
+        const rot = (mask >> i) & 1;
+        if (rot) {
+          return {
+            ...p,
+            width: p.height,
+            height: p.width,
+            // Invertir también dimensiones originales para que al final rotated=!rotated
+            originalWidth: p.originalHeight,
+            originalHeight: p.originalWidth,
+          };
+        }
+        return p;
+      });
+      // Probar packing con orientación fija (sin más rotaciones)
+      const { placedPieces, totalLength } = fixedOrientationPack(
+        preRotated,
+        bobinWidth
+      );
+      if (totalLength < bestResult.totalLengthCm) {
+        // Restaurar originalWidth/Height y marcar rotated correctamente
+        const restored = placedPieces.map((p, i) => {
+          const rot = (mask >> i) & 1;
+          if (rot) {
+            return {
+              ...p,
+              originalWidth: p.originalHeight,
+              originalHeight: p.originalWidth,
+              rotated: true,
+            };
+          }
+          return p;
+        });
+        bestResult = { placedPieces: restored, totalLengthCm: totalLength };
+      }
     }
   }
 
