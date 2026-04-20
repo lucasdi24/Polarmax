@@ -228,6 +228,35 @@ function shelfPack(
     }
   }
 
+  // Post-optimization: rotar piezas únicas en shelves donde rotar reduce la altura del shelf.
+  // Caso típico: shelf con 1 sola pieza alta — rotarla baja la altura del shelf
+  // sin afectar al resto (siempre que la rotación quepa en el ancho de bobina).
+  for (const shelf of shelves) {
+    if (shelf.pieces.length !== 1) continue;
+    const piece = shelf.pieces[0];
+    // Probar rotar la pieza
+    const rotatedW = piece.height;
+    const rotatedH = piece.width;
+    // Solo rotar si cabe en el ancho de bobina Y reduce la altura del shelf
+    if (rotatedW <= bobinWidth && rotatedH < piece.height) {
+      piece.width = rotatedW;
+      piece.height = rotatedH;
+      piece.rotated = !piece.rotated;
+      shelf.usedWidth = rotatedW;
+      shelf.height = rotatedH;
+    }
+  }
+
+  // Recalcular posiciones Y después de la post-optimización
+  let currentY = 0;
+  for (const shelf of shelves) {
+    shelf.y = currentY;
+    for (const p of shelf.pieces) {
+      p.y = currentY;
+    }
+    currentY += shelf.height;
+  }
+
   const totalLength = shelves.reduce((sum, s) => sum + s.height, 0);
 
   return { shelves, totalLength };
