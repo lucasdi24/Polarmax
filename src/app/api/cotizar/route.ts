@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { MATERIALS } from '@/lib/materials';
 import { calculateCutting } from '@/lib/cutting-algorithm';
+import { encodeGlasses } from '@/lib/quote-params';
 import type { GlassInput } from '@/lib/types';
 
 const CORS_HEADERS = {
@@ -91,7 +92,16 @@ export async function POST(req: NextRequest) {
   const linearMeters = results.reduce((sum, r) => sum + r.linearMeters, 0);
   const totalPrice = Math.round(linearMeters * variant.pricePerLinearMeter);
 
-  const plans = results.map((r) => ({
+  // URL sin estado del plano de corte, lista para pasarle a un agente o
+  // pegar en un chat. Se manda la URL y no la imagen: un PNG en base64
+  // acá adentro le comería la ventana de contexto al agente.
+  const spec = encodeGlasses(normalized);
+  const planoUrlFor = (index: number) =>
+    `${req.nextUrl.origin}/api/plano?v=${encodeURIComponent(variant.id)}` +
+    `&g=${encodeURIComponent(spec)}${index > 0 ? `&plan=${index}` : ''}`;
+
+  const plans = results.map((r, index) => ({
+    planoUrl: planoUrlFor(index),
     linearMeters: r.linearMeters,
     totalLengthCm: r.totalLengthCm,
     bobinWidthCm: r.bobinWidthCm,
