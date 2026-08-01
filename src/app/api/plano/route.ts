@@ -1,4 +1,6 @@
 import { createElement } from 'react';
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { NextRequest, NextResponse } from 'next/server';
 import { ImageResponse } from 'next/og';
 import { MATERIALS } from '@/lib/materials';
@@ -37,6 +39,18 @@ const CORS_HEADERS = {
 
 function bad(message: string, status = 400) {
   return NextResponse.json({ error: message }, { status, headers: CORS_HEADERS });
+}
+
+/**
+ * Tipografía del PNG. Se le pasa explícitamente a ImageResponse porque el
+ * .ttf que trae Next adentro no sobrevive al empaquetado de la función
+ * serverless, y sin fuente resvg dibuja cuadraditos en vez de letras.
+ * Se lee una sola vez por instancia.
+ */
+let fontCache: Promise<Buffer> | null = null;
+function loadFont(): Promise<Buffer> {
+  fontCache ??= readFile(join(process.cwd(), 'assets/Geist-Regular.ttf'));
+  return fontCache;
 }
 
 export function OPTIONS() {
@@ -116,13 +130,18 @@ export async function GET(req: NextRequest) {
   const dataUri = `data:image/svg+xml;base64,${Buffer.from(svg, 'utf8').toString('base64')}`;
 
   try {
+    const font = await loadFont();
     const image = new ImageResponse(
       createElement(
         'div',
         { style: { display: 'flex', width: `${width}px`, height: `${height}px`, background: '#ffffff' } },
         createElement('img', { src: dataUri, width, height })
       ),
-      { width, height }
+      {
+        width,
+        height,
+        fonts: [{ name: 'Geist', data: font, weight: 400, style: 'normal' }],
+      }
     );
 
     return new NextResponse(await image.arrayBuffer(), {

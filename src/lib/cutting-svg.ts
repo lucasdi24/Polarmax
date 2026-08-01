@@ -14,8 +14,12 @@ const PIECE_COLORS = [
   '#2e7d32', '#c8e6c9', '#1a3a1a', '#4caf50',
 ];
 
+// Geist va primero porque es la única fuente que se le carga a resvg al
+// rasterizar el PNG: si no matchea por nombre, el texto sale en blanco.
+// En un browser Geist no existe y cae al resto del stack, que es lo que
+// se ve en la web.
 const FONT_STACK =
-  "system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
+  "Geist, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif";
 
 const BASE_WIDTH = 700;
 const PADDING = 50;
