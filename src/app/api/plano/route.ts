@@ -1,4 +1,6 @@
+import { createElement } from 'react';
 import { NextRequest, NextResponse } from 'next/server';
+import { ImageResponse } from 'next/og';
 import { MATERIALS } from '@/lib/materials';
 import { calculateCutting } from '@/lib/cutting-algorithm';
 import { renderCuttingPlanSVG } from '@/lib/cutting-svg';
@@ -15,10 +17,16 @@ import { parseGlasses, countPieces, MAX_PIECES } from '@/lib/quote-params';
 //   /api/plano?v=pol-inter&g=120x90x2,60x180x1
 //
 // Parámetros:
-//   v      variantId del catálogo (ver /api/materiales)
-//   g      vidrios: ANCHOxALTOxCANTIDAD,... con sufijo "d" para DVH
-//   plan   índice del plano cuando hay normales y DVH (default 0)
-//   label  título a dibujar arriba (opcional)
+//   v       variantId del catálogo (ver /api/materiales)
+//   g       vidrios: ANCHOxALTOxCANTIDAD,... con sufijo "d" para DVH
+//   plan    índice del plano cuando hay normales y DVH (default 0)
+//   label   título a dibujar arriba (opcional)
+//   format  svg (default) | png
+//
+// El SVG sirve para imprimir en el taller y para meter en un PDF: es
+// vectorial y no se pixela. El PNG existe porque las plataformas de
+// mensajería no renderizan SVG, así que un agente que le manda el plano
+// a un cliente por chat necesita sí o sí el raster.
 // ============================================================
 
 const CORS_HEADERS = {
@@ -35,7 +43,7 @@ export function OPTIONS() {
   return new NextResponse(null, { status: 204, headers: CORS_HEADERS });
 }
 
-export function GET(req: NextRequest) {
+export async function GET(req: NextRequest) {
   const { searchParams } = req.nextUrl;
 
   const variantId = searchParams.get('v');
@@ -87,13 +95,53 @@ export function GET(req: NextRequest) {
 
   const svg = renderCuttingPlanSVG(result, { label, standalone: true });
 
-  return new NextResponse(svg, {
-    status: 200,
-    headers: {
-      ...CORS_HEADERS,
-      'Content-Type': 'image/svg+xml; charset=utf-8',
-      // La URL determina la imagen por completo: es cacheable para siempre.
-      'Cache-Control': 'public, max-age=31536000, immutable',
-    },
-  });
+  // La URL determina la imagen por completo: es cacheable para siempre.
+  const CACHE = 'public, max-age=31536000, immutable';
+
+  if ((searchParams.get('format') ?? 'svg').toLowerCase() !== 'png') {
+    return new NextResponse(svg, {
+      status: 200,
+      headers: {
+        ...CORS_HEADERS,
+        'Content-Type': 'image/svg+xml; charset=utf-8',
+        'Cache-Control': CACHE,
+      },
+    });
+  }
+
+  // El SVG se rasteriza embebido como <img>: así el PNG sale del mismo
+  // dibujo que la web, en vez de una segunda versión hecha en JSX que se
+  // desincronizaría. Las fuentes las aporta ImageResponse (Geist).
+  const { width, height } = svgSize(svg);
+  const dataUri = `data:image/svg+xml;base64,${Buffer.from(svg, 'utf8').toString('base64')}`;
+
+  try {
+    const image = new ImageResponse(
+      createElement(
+        'div',
+        { style: { display: 'flex', width: `${width}px`, height: `${height}px`, background: '#ffffff' } },
+        createElement('img', { src: dataUri, width, height })
+      ),
+      { width, height }
+    );
+
+    return new NextResponse(await image.arrayBuffer(), {
+      status: 200,
+      headers: {
+        ...CORS_HEADERS,
+        'Content-Type': 'image/png',
+        'Cache-Control': CACHE,
+      },
+    });
+  } catch {
+    return bad('No se pudo generar el PNG del plano.', 500);
+  }
+}
+
+/** Lee el tamaño que declara el SVG standalone. */
+function svgSize(svg: string): { width: number; height: number } {
+  const m = svg.match(/width="([\d.]+)" height="([\d.]+)"/);
+  return m
+    ? { width: Math.round(Number(m[1])), height: Math.round(Number(m[2])) }
+    : { width: 700, height: 900 };
 }

@@ -96,12 +96,16 @@ export async function POST(req: NextRequest) {
   // pegar en un chat. Se manda la URL y no la imagen: un PNG en base64
   // acá adentro le comería la ventana de contexto al agente.
   const spec = encodeGlasses(normalized);
-  const planoUrlFor = (index: number) =>
+  const planoUrlFor = (index: number, format: 'svg' | 'png') =>
     `${req.nextUrl.origin}/api/plano?v=${encodeURIComponent(variant.id)}` +
-    `&g=${encodeURIComponent(spec)}${index > 0 ? `&plan=${index}` : ''}`;
+    `&g=${encodeURIComponent(spec)}${index > 0 ? `&plan=${index}` : ''}` +
+    (format === 'png' ? '&format=png' : '');
 
   const plans = results.map((r, index) => ({
-    planoUrl: planoUrlFor(index),
+    // svg para imprimir o meter en un PDF; png para mandarlo por chat,
+    // que es lo único que renderizan las plataformas de mensajería.
+    planoUrl: planoUrlFor(index, 'svg'),
+    planoPngUrl: planoUrlFor(index, 'png'),
     linearMeters: r.linearMeters,
     totalLengthCm: r.totalLengthCm,
     bobinWidthCm: r.bobinWidthCm,
