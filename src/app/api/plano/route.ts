@@ -1,8 +1,7 @@
-import { createElement } from 'react';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { NextRequest, NextResponse } from 'next/server';
-import { ImageResponse } from 'next/og';
+import { initWasm, Resvg } from '@resvg/resvg-wasm';
 import { MATERIALS } from '@/lib/materials';
 import { calculateCutting } from '@/lib/cutting-algorithm';
 import { renderCuttingPlanSVG } from '@/lib/cutting-svg';
@@ -42,15 +41,23 @@ function bad(message: string, status = 400) {
 }
 
 /**
- * Tipografía del PNG. Se le pasa explícitamente a ImageResponse porque el
- * .ttf que trae Next adentro no sobrevive al empaquetado de la función
- * serverless, y sin fuente resvg dibuja cuadraditos en vez de letras.
- * Se lee una sola vez por instancia.
+ * Tipografía del PNG. Hay que dársela a resvg explícitamente: no tiene
+ * fuentes de sistema, y sin ninguna cargada dibuja cuadraditos en vez de
+ * letras. Se lee una sola vez por instancia.
  */
 let fontCache: Promise<Buffer> | null = null;
 function loadFont(): Promise<Buffer> {
   fontCache ??= readFile(join(process.cwd(), 'assets/Geist-Regular.ttf'));
   return fontCache;
+}
+
+/** El WASM de resvg se inicializa una sola vez por instancia. */
+let wasmCache: Promise<void> | null = null;
+function ensureWasm(): Promise<void> {
+  wasmCache ??= readFile(
+    join(process.cwd(), 'node_modules/@resvg/resvg-wasm/index_bg.wasm')
+  ).then((bin) => initWasm(bin));
+  return wasmCache;
 }
 
 export function OPTIONS() {
@@ -123,28 +130,22 @@ export async function GET(req: NextRequest) {
     });
   }
 
-  // El SVG se rasteriza embebido como <img>: así el PNG sale del mismo
-  // dibujo que la web, en vez de una segunda versión hecha en JSX que se
-  // desincronizaría. Las fuentes las aporta ImageResponse (Geist).
-  const { width, height } = svgSize(svg);
-  const dataUri = `data:image/svg+xml;base64,${Buffer.from(svg, 'utf8').toString('base64')}`;
-
+  // Se rasteriza el mismo SVG que ve la web, en vez de redibujar el plano
+  // en otro formato que se desincronizaría.
   try {
+    await ensureWasm();
     const font = await loadFont();
-    const image = new ImageResponse(
-      createElement(
-        'div',
-        { style: { display: 'flex', width: `${width}px`, height: `${height}px`, background: '#ffffff' } },
-        createElement('img', { src: dataUri, width, height })
-      ),
-      {
-        width,
-        height,
-        fonts: [{ name: 'Geist', data: font, weight: 400, style: 'normal' }],
-      }
-    );
 
-    return new NextResponse(await image.arrayBuffer(), {
+    const resvg = new Resvg(svg, {
+      font: {
+        fontBuffers: [new Uint8Array(font)],
+        defaultFontFamily: 'Geist',
+      },
+      fitTo: { mode: 'original' },
+    });
+    const png = resvg.render().asPng();
+
+    return new NextResponse(new Uint8Array(png), {
       status: 200,
       headers: {
         ...CORS_HEADERS,
@@ -155,12 +156,4 @@ export async function GET(req: NextRequest) {
   } catch {
     return bad('No se pudo generar el PNG del plano.', 500);
   }
-}
-
-/** Lee el tamaño que declara el SVG standalone. */
-function svgSize(svg: string): { width: number; height: number } {
-  const m = svg.match(/width="([\d.]+)" height="([\d.]+)"/);
-  return m
-    ? { width: Math.round(Number(m[1])), height: Math.round(Number(m[2])) }
-    : { width: 700, height: 900 };
 }

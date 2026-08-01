@@ -5,7 +5,10 @@ const nextConfig: NextConfig = {
   // Sin esto la función serverless se despliega sin el .ttf y el texto sale
   // como cuadraditos: resvg no tiene con qué dibujar las letras.
   outputFileTracingIncludes: {
-    '/api/plano': ['./assets/**'],
+    '/api/plano': [
+      './assets/**',
+      './node_modules/@resvg/resvg-wasm/index_bg.wasm',
+    ],
   },
 };
 

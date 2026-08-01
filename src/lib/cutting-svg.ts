@@ -127,7 +127,9 @@ export function renderCuttingPlanSVG(
     );
 
     if (showFull) {
-      const medidas = `${piece.originalWidth}x${piece.originalHeight}${piece.rotated ? ' ↻' : ''}`;
+      // "rot" en vez de una flecha ↻: Geist no trae ese glifo y en el PNG
+      // salía un cuadradito, que en un plano de corte se lee como error.
+      const medidas = `${piece.originalWidth}x${piece.originalHeight}${piece.rotated ? ' rot' : ''}`;
       parts.push(
         `<text x="${n(cx)}" y="${n(cy - 7)}" text-anchor="middle" dominant-baseline="middle" font-size="12" font-weight="700" fill="${color}">V${piece.id + 1}</text>`,
         `<text x="${n(cx)}" y="${n(cy + 8)}" text-anchor="middle" dominant-baseline="middle" font-size="9" fill="#6b7280">${escapeXml(medidas)}</text>`
